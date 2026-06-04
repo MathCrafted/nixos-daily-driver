@@ -5,16 +5,39 @@
 { config, pkgs, ... }:
 
 {
+
+  ###########
+  # Imports #
+  ###########
+
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
     ];
 
-  # Bootloader.
+
+  ##############
+  # Bootloader #
+  ##############
+
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader = {
+    grub = {
+      enable = true;
+      device = "nodev";
+      efiSupport = true;
+      useOSProber = true;
+    };
+    efi.canTouchEfiVariables = true;
+  };
 
-  networking.hostName = "nixos"; # Define your hostname.
+
+  ##############
+  # Networking #
+  ##############
+
+  networking.hostName = "gandalf"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
 
   # Configure network proxy if necessary
@@ -23,6 +46,11 @@
 
   # Enable networking
   networking.networkmanager.enable = true;
+
+
+  ################
+  # Localization #
+  ################
 
   # Set your time zone.
   time.timeZone = "America/New_York";
@@ -48,6 +76,29 @@
     variant = "";
   };
 
+
+  #########
+  # Users #
+  #########
+
+  security.sudo = {
+    enable = true;
+    execWheelOnly = true;
+    wheelNeedsPassword = true;
+    extraConfig = with pkgs; ''
+      Defaults targetpw
+    '';
+    extraRules = [{
+      groups = [ "wheel" ];
+      commands = [
+        {
+          command = "${pkgs.systemd}/bin/reboot";
+          options = [ "NOPASSWD" ];
+        }
+      ];
+    }];
+  };
+
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.mathcrafted = {
     isNormalUser = true;
@@ -56,15 +107,35 @@
     packages = with pkgs; [];
   };
 
+
+  ############
+  # Packages #
+  ############
+
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-  #  vim # Do not forget to add an editor to edit configuration.nix! The Nano editor is also installed by default.
-  #  wget
+    
+    # CLI
+    vim
+    git
+    wget
+
+    # GUI
+    neovide
+    firefox
+
   ];
+
+  programs.hyprland.enable = true;
+
+
+  ##############
+  # Pkg Config #
+  ##############
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
@@ -74,7 +145,21 @@
   #   enableSSHSupport = true;
   # };
 
-  # List services that you want to enable:
+
+  ############
+  # Services #
+  ############
+
+  services.keyd = {
+    enable = true;
+    keyboards = {
+      default = {
+        ids = [ "*" ];
+        settings.main.capslock = "escape";
+        settings.main.escape = "capslock";
+      };
+    };
+  };
 
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
@@ -84,6 +169,11 @@
   # networking.firewall.allowedUDPPorts = [ ... ];
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
+
+
+  ##############
+  # OS Version #
+  ##############
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
