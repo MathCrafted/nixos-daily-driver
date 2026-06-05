@@ -4,7 +4,17 @@
 
 { config, pkgs, ... }:
 
+let
+
+  home-manager = builtins.fetchTarball https://github.com/nix-community/home-manager/archive/release-26.05.tar.gz;
+
+in
+
 {
+
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  system.autoUpgrade.channel = "https://nixos.org/channels/nixos-26.05/";
+
 
   ###########
   # Imports #
@@ -13,6 +23,8 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
+      <home-manager/nixos>
+      ./dual-boot.nix
     ];
 
 
@@ -20,14 +32,11 @@
   # Bootloader #
   ##############
 
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
   boot.loader = {
     grub = {
       enable = true;
       device = "nodev";
       efiSupport = true;
-      useOSProber = true;
     };
     efi.canTouchEfiVariables = true;
   };
@@ -103,8 +112,16 @@
   users.users.mathcrafted = {
     isNormalUser = true;
     description = "mathcrafted";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = [ "networkmanager" "wheel" "seat" ];
     packages = with pkgs; [];
+  };
+
+  home-manager.users.mathcrafted = { pkgs, ... }: {
+    home.stateVersion = "26.05";
+    
+    programs.bash.enable = true;
+    programs.kitty.enable = true;
+    wayland.windowManager.hyprland.enable = true;
   };
 
 
@@ -121,21 +138,60 @@
     
     # CLI
     vim
+    neovim
     git
     wget
+    fastfetch
+    sl
+    bonsai
+    cmatrix
+    cowsay
+    lolcat
+
+    # Shell Layer
+    tofi
+    ashell
+    dunst
+    quickshell
+    nerd-fonts.noto
 
     # GUI
+    superfile
+    kitty
     neovide
     firefox
+    gparted
+    mission-center
 
   ];
-
-  programs.hyprland.enable = true;
 
 
   ##############
   # Pkg Config #
   ##############
+
+  programs.hyprland = {
+    enable = true;
+    withUWSM = false; # UWSM not working, don't know why
+  };
+
+  programs.uwsm.enable = false;
+
+  programs.neovim = {
+    enable = true;
+    defaultEditor = true;
+    vimAlias = false;
+    configure = {
+      customRC = ''
+	set number
+	set relativenumber
+      '';
+      packages.myPlugins = with pkgs.vimPlugins; {
+        start = [ vim-nix ];
+        opt = [];
+      };
+    };
+  };
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
@@ -159,6 +215,11 @@
         settings.main.escape = "capslock";
       };
     };
+  };
+
+  services.displayManager.lemurs = {
+    enable = true;
+    #settings = "";
   };
 
   # Enable the OpenSSH daemon.
