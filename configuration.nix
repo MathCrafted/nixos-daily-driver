@@ -2,7 +2,7 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, ... }:
+{ config, pkgs, lib, ... }:
 
 let
 
@@ -40,6 +40,11 @@ in
     };
     efi.canTouchEfiVariables = true;
   };
+
+
+  ###############
+  # Environment #
+  ###############
 
 
   ##############
@@ -121,7 +126,72 @@ in
     
     programs.bash.enable = true;
     programs.kitty.enable = true;
-    wayland.windowManager.hyprland.enable = true;
+    programs.firefox.enable = true;
+    wayland.windowManager.hyprland = {
+      enable = true;
+      configType = "lua";
+      settings = {
+
+	############
+        # PROGRAMS #
+        ############
+	search._var = "tofi-drun --drun-launch=true"; # Search command
+	terminal._var = "kitty"; # Terminal command
+	filesGUI._var = "dolphin"; # Graphical file explorer command
+	filesTUI._var = "kitty -o confirm_os_window_close=0 superfile"; # Text file explorer command
+	toolbar._var = "ashell"; # Toolbar command
+        
+	#############
+        # AUTOSTART #
+	#############
+        on._args = [
+	  "hyprland.start"
+	  (lib.generators.mkLuaInline "function()\nhl.exec_cmd(toolbar)\nend")
+	];
+
+	############
+        # KEYBINDS #
+        ############
+        
+	mainMod._var = "SUPER";
+	bind = [
+	# Miscellaneous keybinds
+	  # Open search with mainMod + Space
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + SPACE\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(search)") ];}
+	  
+          # Close window with mainMod + C
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + C\"") (lib.generators.mkLuaInline "hl.dsp.window.close()") ];}
+	  
+	  # Open terminal with mainMod + R
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + R\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(terminal)") ];}
+	  
+	  # Close hyprland with mainMod + M
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + M\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'\")") ];}
+	  
+	  # Open textual file explorer with mainMod + E
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + E\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(filesTUI)") ];}
+	  
+	  # Open graphical file explorer with mainMod + Shift + E
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + SHIFT + E\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(filesGUI)") ];}
+	  
+	  # Reposition window with mainMod + Drag-left-click
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + mouse:272\"") (lib.generators.mkLuaInline "hl.dsp.window.drag()") ];}
+	  
+	  # Resize window with mainMod + Drage-right-click
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + mouse:273\"") (lib.generators.mkLuaInline "hl.dsp.window.resize()") ];}
+        ]
+
+	# Switch to workspace via mainMod + 0-9
+	# Move window to workspace via mainMod + Shift + 0-9
+	++ builtins.concatLists (builtins.genList(i:
+          let workspace = i + 1;
+	  in [
+	    {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + \" .. (${toString workspace} % 10)") (lib.generators.mkLuaInline "hl.dsp.focus({ workspace = ${toString workspace} })") ];}
+	    {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + SHIFT + \" .. (${toString workspace} % 10)") (lib.generators.mkLuaInline "hl.dsp.window.move({ workspace = ${toString workspace} })") ];}
+	  ]
+	) 10);
+      };
+    };
   };
 
 
@@ -157,6 +227,7 @@ in
 
     # GUI
     superfile
+    kdePackages.dolphin
     kitty
     neovide
     firefox
