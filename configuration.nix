@@ -47,21 +47,6 @@ in
   ###############
 
 
-  ##############
-  # Networking #
-  ##############
-
-  networking.hostName = "gandalf"; # Define your hostname.
-  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
-
-  # Configure network proxy if necessary
-  # networking.proxy.default = "http://user:password@proxy:port/";
-  # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
-
-  # Enable networking
-  networking.networkmanager.enable = true;
-
-
   ################
   # Localization #
   ################
@@ -117,7 +102,7 @@ in
   users.users.mathcrafted = {
     isNormalUser = true;
     description = "mathcrafted";
-    extraGroups = [ "networkmanager" "wheel" "seat" ];
+    extraGroups = [ "networkmanager" "wheel" "seat" "audio" "realtime" ];
     packages = with pkgs; [];
   };
 
@@ -127,10 +112,63 @@ in
     programs.bash.enable = true;
     programs.kitty.enable = true;
     programs.firefox.enable = true;
+    programs.hyprlock = {
+      package = null;
+      settings = {
+        general = {
+	  hide_cursor = true;
+	  ignore_empty_input = true;
+	};
+	background = [
+	  {
+	    path = "screenshot";
+	    blur_passes = 3;
+	    blur_size = 8;
+	  }
+	];
+      };
+    };
     wayland.windowManager.hyprland = {
       enable = true;
+      package = null;
+      portalPackage = null;
       configType = "lua";
       settings = {
+	
+	############
+	# MONITORS #
+	############
+	
+        monitor = [
+	  {
+	    output = "eDP-1";
+	    mode = "preferred";
+	    position = "0x0";
+	    scale = 1;
+	  }
+	  {
+	    output = "DP-1";
+	    mode = "preferred";
+	    position = "1920x-1080";
+	    scale = 1;
+	    transform = 1;
+	  }
+	  {
+	    output = "HDMI-A-1";
+	    mode = "preferred";
+	    position = "-1920x0";
+	    scale = 1;
+	  }
+	];
+
+
+	##########
+	# CONFIG #
+	##########
+	config.input = {
+	  touchpad.natural_scroll = false;
+	  tablet.output = "current";
+	};
 
 	############
         # PROGRAMS #
@@ -140,6 +178,7 @@ in
 	filesGUI._var = "dolphin"; # Graphical file explorer command
 	filesTUI._var = "kitty -o confirm_os_window_close=0 superfile"; # Text file explorer command
 	toolbar._var = "ashell"; # Toolbar command
+	lock._var = "hyprlock"; # Lock command
         
 	#############
         # AUTOSTART #
@@ -164,6 +203,9 @@ in
 	  
 	  # Open terminal with mainMod + R
 	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + R\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(terminal)") ];}
+
+	  # Lock screen with mainMod + L
+	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + ESCAPE\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(lock)") ];}
 	  
 	  # Close hyprland with mainMod + M
 	  {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + M\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'\")") ];}
@@ -189,7 +231,40 @@ in
 	    {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + \" .. (${toString workspace} % 10)") (lib.generators.mkLuaInline "hl.dsp.focus({ workspace = ${toString workspace} })") ];}
 	    {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + SHIFT + \" .. (${toString workspace} % 10)") (lib.generators.mkLuaInline "hl.dsp.window.move({ workspace = ${toString workspace} })") ];}
 	  ]
-	) 10);
+	) 10)
+
+	# Switch window by direction
+	++ [
+          {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + K \"") (lib.generators.mkLuaInline "hl.dsp.focus({ direction=\"up\"})") ];}
+          {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + SHIFT + K \"") (lib.generators.mkLuaInline "hl.dsp.window.swap({ direction=\"up\"})") ];}
+          
+          {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + J \"") (lib.generators.mkLuaInline "hl.dsp.focus({ direction=\"down\"})") ];}
+          {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + SHIFT + J \"") (lib.generators.mkLuaInline "hl.dsp.window.swap({ direction=\"down\"})") ];}
+          
+          {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + H \"") (lib.generators.mkLuaInline "hl.dsp.focus({ direction=\"left\"})") ];}
+          {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + SHIFT + H \"") (lib.generators.mkLuaInline "hl.dsp.window.swap({ direction=\"left\"})") ];}
+          
+          {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + L \"") (lib.generators.mkLuaInline "hl.dsp.focus({ direction=\"right\"})") ];}
+          {_args=[ (lib.generators.mkLuaInline "mainMod .. \" + SHIFT + L \"") (lib.generators.mkLuaInline "hl.dsp.window.swap({ direction=\"right\"})") ];}
+	]
+
+	# Multimedia keys
+	++ [
+
+	  # Volume controls
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioRaiseVolume\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+\")") (lib.generators.mkLuaInline "{locked = true, repeating = true}") ];}
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioLowerVolume\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-\")") (lib.generators.mkLuaInline "{locked = true, repeating = true}") ];}
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioMute\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle\")") (lib.generators.mkLuaInline "{locked = true}") ];}
+	  
+	  # Brightness controls
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86MonBrightnessUp\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"brightnessctl -e4 -n2 set 5%+\")") (lib.generators.mkLuaInline "{locked = true, repeating = true}") ];}
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86MonBrightnessDown\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"brightnessctl -e4 -n2 set 5%+\")") (lib.generators.mkLuaInline "{locked = true, repeating = true}") ];}
+	  
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioNext\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"playerctl next\")") (lib.generators.mkLuaInline "{locked = true}") ];}
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioPause\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"playerctl play-pause\")") (lib.generators.mkLuaInline "{locked = true}") ];}
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioPlay\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"playerctl play-pause\")") (lib.generators.mkLuaInline "{locked = true}") ];}
+	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioPrev\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"playerctl previous\")") (lib.generators.mkLuaInline "{locked = true}") ];}
+	];
       };
     };
   };
@@ -206,9 +281,14 @@ in
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     
+    # Kernel-level
+    sof-firmware
+
     # CLI
-    vim
-    neovim
+    busybox
+    lsof
+    playerctl
+    brightnessctl
     git
     wget
     fastfetch
@@ -218,7 +298,7 @@ in
     cowsay
     lolcat
 
-    # Shell Layer
+    # Desktop Shell Layer
     tofi
     ashell
     dunst
@@ -248,10 +328,12 @@ in
 
   programs.uwsm.enable = false;
 
+  programs.hyprlock.enable = true;
+
   programs.neovim = {
     enable = true;
     defaultEditor = true;
-    vimAlias = false;
+    vimAlias = true;
     configure = {
       customRC = ''
 	set number
@@ -293,8 +375,96 @@ in
     #settings = "";
   };
 
+  hardware.firmware = [
+    pkgs.sof-firmware
+  ];
+  hardware.alsa.enablePersistence = true;
+  security.rtkit.enable = true;
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+    extraConfig.pipewire."60-custom-sink"."context.modules" = [
+      {
+        name = "libpipewire-module-loopback";
+	args."capture.props" = {
+	  "media.class" = "Audio/Sink";
+	  "node.name" = "custom.soundcraft.out.7-8";
+	  "node.description" = "Soundcraft 7/8 Out";
+	  "audio.position" = [ "FL" "FR" ];
+	};
+	args."playback.props" = {
+	  "node.name" = "custom.soundcraft.hw-out.7-8";
+	  "node.description" = "";
+	  "audio.position" = [ "AUX6" "AUX7" ];
+	  "node.target" = "alsa_output.usb-Soundcraft_Soundcraft_Signature_12_MTK-00.pro_output-0";
+	};
+      }
+      {
+        name = "libpipewire-module-loopback";
+	args."capture.props" = {
+	  "media.class" = "Audio/Sink";
+	  "node.name" = "custom.soundcraft.out.9-10";
+	  "node.description" = "Soundcraft 9/10 Out";
+	  "audio.position" = [ "FL" "FR" ];
+	};
+	args."playback.props" = {
+	  "node.name" = "custom.soundcraft.hw-out.9-10";
+	  "node.description" = ".";
+	  "audio.position" = [ "AUX8" "AUX9" ];
+	  "node.target" = "alsa_output.usb-Soundcraft_Soundcraft_Signature_12_MTK-00.pro_output-0";
+	};
+      }
+      {
+        name = "libpipewire-module-loopback";
+	args."capture.props" = {
+	  "media.class" = "Audio/Sink";
+	  "node.name" = "custom.soundcraft.out.11-12";
+	  "node.description" = "Soundcraft 11/12 Out";
+	  "audio.position" = [ "FL" "FR" ];
+	};
+	args."playback.props" = {
+	  "node.name" = "custom.soundcraft.hw-out.11-12";
+	  "node.description" = ".";
+	  "audio.position" = [ "AUX10" "AUX11" ];
+	  "node.target" = "alsa_output.usb-Soundcraft_Soundcraft_Signature_12_MTK-00.pro_output-0";
+	};
+      }
+      {
+        name = "libpipewire-module-loopback";
+	args."capture.props" = {
+	  "audio.position" = [ "AUX8" ];
+	  "stream.dont-remix" = true;
+	  "node.passive" = true;
+	  "node.target" = "alsa_input.usb-Soundcraft_Soundcraft_Signature_12_MTK-00.pro_input-0";
+	};
+	args."playback.props" = {
+	  "node.name" = "custom.soundcraft.in.9";
+	  "audio.position" = [ "MONO" ];
+	  "media.class" = "Audio/Source";
+	};
+      }
+    ];
+  };
+
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
+
+
+  ##############
+  # Networking #
+  ##############
+
+  networking.hostName = "gandalf"; # Define your hostname.
+  # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
+
+  # Configure network proxy if necessary
+  # networking.proxy.default = "http://user:password@proxy:port/";
+  # networking.proxy.noProxy = "127.0.0.1,localhost,internal.domain";
+
+  # Enable networking
+  networking.networkmanager.enable = true;
 
   # Open ports in the firewall.
   # networking.firewall.allowedTCPPorts = [ ... ];
