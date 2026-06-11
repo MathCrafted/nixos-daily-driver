@@ -102,7 +102,7 @@ in
   users.users.mathcrafted = {
     isNormalUser = true;
     description = "mathcrafted";
-    extraGroups = [ "networkmanager" "wheel" "seat" "audio" "realtime" ];
+    extraGroups = [ "networkmanager" "wheel" "seat" "audio" "realtime" "wireshark" ];
     packages = with pkgs; [];
   };
 
@@ -178,7 +178,8 @@ in
 	filesGUI._var = "dolphin"; # Graphical file explorer command
 	filesTUI._var = "kitty -o confirm_os_window_close=0 superfile"; # Text file explorer command
 	toolbar._var = "ashell"; # Toolbar command
-	lock._var = "hyprlock"; # Lock command
+        lock._var = "hyprlock"; # Lock command
+        screenshot._var = "grim -g \"$(slurp -d)\" - | wl-copy";
         
 	#############
         # AUTOSTART #
@@ -264,7 +265,34 @@ in
 	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioPause\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"playerctl play-pause\")") (lib.generators.mkLuaInline "{locked = true}") ];}
 	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioPlay\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"playerctl play-pause\")") (lib.generators.mkLuaInline "{locked = true}") ];}
 	  {_args=[ (lib.generators.mkLuaInline "\"XF86AudioPrev\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(\"playerctl previous\")") (lib.generators.mkLuaInline "{locked = true}") ];}
-	];
+        ]
+
+        # Screenshot
+        ++ [
+
+          # PrintScreen
+          {_args=[ (lib.generators.mkLuaInline "\"Print\"") (lib.generators.mkLuaInline "hl.dsp.exec_cmd(screenshot)") ];}
+        
+        ];
+      };
+    };
+    programs.ashell = {
+      enable = true;
+      settings = {
+        modules = {
+          left = [];
+          center = [
+            "Workspaces"
+          ];
+          right = [
+            "SystemInfo"
+            [
+              "Clock"
+              "Settings"
+            ]
+          ];
+        };
+        #workspaces.visibilityMode = "MonitorSpecific";
       };
     };
   };
@@ -286,11 +314,11 @@ in
 
     # CLI
     busybox
-    lsof
+    #lsof # contained in busybox
     playerctl
     brightnessctl
     git
-    wget
+    #wget # contained in busybox
     fastfetch
     sl
     bonsai
@@ -300,12 +328,15 @@ in
 
     # Desktop Shell Layer
     tofi
-    ashell
     dunst
     quickshell
     nerd-fonts.noto
+    grim
+    slurp
+    wl-clipboard
+    hyprpolkitagent
 
-    # GUI
+    # GUI utilities
     superfile
     kdePackages.dolphin
     kitty
@@ -313,9 +344,44 @@ in
     firefox
     gparted
     mission-center
+    vlc
+
+    # Art
+    gimp
+    blender
+    davinci-resolve
+    inkscape
+    libresprite
+    lmms
+
+    # Development
+    qemu-utils
+
+    # Communication
+    webcord
+
+    # Productivity
+    strawberry
 
   ];
 
+  specialisation.gaming = {
+    configuration = {
+      environment.systemPackages = with pkgs; [
+        
+        azahar
+        dolphin-emu
+        lunar-client
+        vintagestory
+
+      ];
+
+      programs.steam = {
+        enable = true;
+        protontricks.enable = true;
+      };
+    };
+  };
 
   ##############
   # Pkg Config #
@@ -337,22 +403,32 @@ in
     configure = {
       customRC = ''
 	set number
-	set relativenumber
+        set relativenumber
+        tnoremap <Esc> <C-\><C-N>
       '';
       packages.myPlugins = with pkgs.vimPlugins; {
-        start = [ vim-nix ];
+        start = [ vim-nix vim-suda ];
         opt = [];
       };
     };
   };
 
-  # Some programs need SUID wrappers, can be configured further or are
-  # started in user sessions.
-  # programs.mtr.enable = true;
-  # programs.gnupg.agent = {
-  #   enable = true;
-  #   enableSSHSupport = true;
-  # };
+  programs.ssh.startAgent = true;
+
+  virtualisation.podman = {
+    enable = true;
+  };
+
+  programs.obs-studio = {
+    enable = true;
+  };
+
+  programs.wireshark = {
+    enable = true;
+    package = pkgs.wireshark;
+    dumpcap.enable = true; # Capture network traffic
+    usbmon.enable = false; # Capture usb traffic
+  };
 
 
   ############
@@ -447,6 +523,14 @@ in
       }
     ];
   };
+
+  # Some programs need SUID wrappers, can be configured further or are
+  # started in user sessions.
+  # programs.mtr.enable = true;
+  # programs.gnupg.agent = {
+  #   enable = true;
+  #   enableSSHSupport = true;
+  # };
 
   # Enable the OpenSSH daemon.
   # services.openssh.enable = true;
