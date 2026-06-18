@@ -112,6 +112,7 @@ in
     programs.bash.enable = true;
     programs.kitty.enable = true;
     programs.firefox.enable = true;
+    services.kdeconnect.enable = true;
     programs.hyprlock = {
       package = null;
       settings = {
@@ -155,7 +156,7 @@ in
 	  }
 	  {
 	    output = "HDMI-A-1";
-	    mode = "preferred";
+	    mode = "1920x1080";
 	    position = "-1920x0";
 	    scale = 1;
 	  }
@@ -173,7 +174,7 @@ in
 	############
         # PROGRAMS #
         ############
-	search._var = "tofi-drun --drun-launch=true"; # Search command
+	search._var = "rm $HOME/.cache/tofi-drun && tofi-drun --drun-launch=true"; # Search command
 	terminal._var = "kitty"; # Terminal command
 	filesGUI._var = "dolphin"; # Graphical file explorer command
 	filesTUI._var = "kitty -o confirm_os_window_close=0 superfile"; # Text file explorer command
@@ -186,7 +187,7 @@ in
 	#############
         on._args = [
 	  "hyprland.start"
-	  (lib.generators.mkLuaInline "function()\nhl.exec_cmd(toolbar)\nend")
+	  (lib.generators.mkLuaInline "function()\nhl.exec_cmd(toolbar)\nhl.exec_cmd(\"kdeconnect-indicator\")\nend")
 	];
 
 	############
@@ -280,7 +281,9 @@ in
       enable = true;
       settings = {
         modules = {
-          left = [];
+          left = [
+            "Tray"
+          ];
           center = [
             "Workspaces"
           ];
@@ -345,6 +348,7 @@ in
     gparted
     mission-center
     vlc
+    piper
 
     # Art
     gimp
@@ -373,6 +377,7 @@ in
         dolphin-emu
         lunar-client
         vintagestory
+        wine64
 
       ];
 
@@ -383,9 +388,9 @@ in
     };
   };
 
-  ##############
-  # Pkg Config #
-  ##############
+  ############
+  # Programs #
+  ############
 
   programs.hyprland = {
     enable = true;
@@ -430,6 +435,8 @@ in
     usbmon.enable = false; # Capture usb traffic
   };
 
+  programs.kdeconnect.enable = true;
+
 
   ############
   # Services #
@@ -445,6 +452,8 @@ in
       };
     };
   };
+
+  services.ratbagd.enable = true;
 
   services.displayManager.lemurs = {
     enable = true;
@@ -551,10 +560,16 @@ in
   networking.networkmanager.enable = true;
 
   # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
+  networking.firewall = {
+    enable = false;
+    logRefusedPackets = true;  # should show up in dmesg
+    allowedTCPPortRanges = [ 
+      { from=1714; to=1764; }
+    ];
+    allowedUDPPortRanges = [ 
+      { from=1714; to=1764; }
+    ];
+  };
 
 
   ##############
