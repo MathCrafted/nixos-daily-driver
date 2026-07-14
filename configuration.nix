@@ -7,7 +7,7 @@
 let
 
   home-manager = builtins.fetchTarball https://github.com/nix-community/home-manager/archive/release-26.05.tar.gz;
-
+  
 in
 
 {
@@ -111,15 +111,34 @@ in
           command = "/run/current-system/sw/bin/systemctl poweroff";
           options = [ "NOPASSWD" ];
         }
+
+        {
+          command = "/run/current-system/sw/bin/nmcli";
+          options = [ "NOPASSWD" ];
+        }
+        {
+          command = "/run/current-system/sw/bin/rfkill";
+          options = [ "NOPASSWD" ];
+        }
       ];
     }];
+  };
+
+  security.polkit = {
+    enable = true;
+    extraConfig = ''
+      polkit.addRule(function(action, subject) {
+        if (subject.isInGroup("wheel"))
+          return polkit.result.YES;
+      });
+    '';
   };
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.mathcrafted = {
     isNormalUser = true;
     description = "mathcrafted";
-    extraGroups = [ "networkmanager" "wheel" "seat" "audio" "realtime" "wireshark" ];
+    extraGroups = [ "networkmanager" "wheel" "seat" "audio" "realtime" "wireshark" "plugdev" "cdrom" "video" "rfkill" ];
     packages = with pkgs; [
       claude-code
     ];
@@ -132,6 +151,13 @@ in
     programs.kitty.enable = true;
     programs.firefox.enable = true;
     services.kdeconnect.enable = true;
+    home.file = {
+      ".config/aacs/KEYDB.cfg" = {
+        enable = true;
+        force = true;
+        source = ./files/KEYDB.cfg;
+      };
+    };
   };
 
 
@@ -142,12 +168,25 @@ in
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
+  # Overlays
+  nixpkgs.overlays = [
+    # (final: prev: {
+    #   vlc = prev.vlc.override {
+    #     libbluray-full = prev.libbluray.override {
+    #       withAACS = true;
+    #       withBDplus = true;
+    #     };
+    #   };
+    # })
+  ];
+
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     
     # Kernel-level
     sof-firmware
+    libcamera
 
     # CLI
     busybox
@@ -160,6 +199,7 @@ in
     cmatrix
     cowsay
     lolcat
+    cifs-utils
 
     # Desktop Shell Layer
     dunst
@@ -167,7 +207,6 @@ in
     grim
     slurp
     wl-clipboard
-    hyprpolkitagent
 
     # GUI utilities
     superfile
@@ -180,6 +219,10 @@ in
     vlc
     piper
     libreoffice
+    makemkv
+    handbrake
+    mkvtoolnix
+    mkvtoolnix-cli
 
     # Art
     gimp
@@ -192,12 +235,13 @@ in
     # Development
     qemu-utils
     socat
+    arduino-ide
 
     # Communication
     webcord
 
     # Productivity
-    strawberry
+    feishin
 
   ];
 
@@ -216,6 +260,20 @@ in
       programs.steam = {
         enable = true;
         protontricks.enable = true;
+        extraCompatPackages = with pkgs; [
+          proton-ge-bin
+        ];
+      };
+
+      programs.gamemode.enable = true;
+
+      services.udev = {
+        enable = true;
+        extraRules = ''
+          SUBSYSTEM=="usb", ATTRS{idVendor}=="0x8087", ATTRS{idProduct}=="0x0029", TAG+="uaccess"
+          #KERNEL=="media0", SUBSYSTEM=="media", TAG+="uaccess"
+          #KERNEL=="video[0-9]*", SUBSYSTEM=="video4linux", SUBSYSTEMS=="usb", ATTRS{idVendor}=="3938", ATTRS{idProduct}=="1300", SYMLINK+="video-cam"
+        '';
       };
     };
   };
@@ -271,6 +329,21 @@ in
 	set number
         set relativenumber
         tnoremap <Esc> <C-\><C-N>
+        cnoremap sudo SudaWrite
+        term
+      '';
+      customLuaRC = ''
+        vim.api.nvim_create_autocmd("TermResponse", {
+          callback = function()
+            print("Event fired")
+            local _, cwd = pcall(vim.fn.expand, "<amatch>")
+            print(cwd)
+            if cwd and cwd:sub(1, 7) == "file://" then
+              local path = cwd:sub(8)
+              vim.cmd("cd " .. vim.fn.fnameescape(path))
+            end
+          end,
+        })
       '';
       packages.myPlugins = with pkgs.vimPlugins; {
         start = [ vim-nix vim-suda ];
@@ -287,6 +360,7 @@ in
 
   programs.obs-studio = {
     enable = true;
+    enableVirtualCamera = true;
   };
 
   programs.wireshark = {
@@ -302,6 +376,15 @@ in
   ############
   # Services #
   ############
+
+  services.upower = {
+    enable = true;
+
+    usePercentageForPolicy = true;
+    percentageLow = 10;
+    percentageCritical = 3;
+    percentageAction = 1;
+  };
 
   services.keyd = {
     enable = true;
@@ -344,7 +427,7 @@ in
 	  "node.name" = "custom.soundcraft.hw-out.7-8";
 	  "node.description" = "";
 	  "audio.position" = [ "AUX6" "AUX7" ];
-	  "node.target" = "alsa_output.usb-Soundcraft_Soundcraft_Signature_12_MTK-00.pro_output-0";
+          "node.target" = "alsa_output.usb-Soundcraft_Soundcraft_Signature_12_MTK-00.pro_output-0";
 	};
       }
       {
@@ -424,12 +507,30 @@ in
   networking.firewall = {
     enable = false;
     logRefusedPackets = true;  # should show up in dmesg
+    trustedInterfaces = [
+      config.services.tailscale.interfaceName
+    ];
     allowedTCPPortRanges = [ 
       { from=1714; to=1764; }
+    ];
+    allowedUDPPorts = [
+      config.services.tailscale.port
     ];
     allowedUDPPortRanges = [ 
       { from=1714; to=1764; }
     ];
+  };
+
+  services.tailscale.enable = true;
+
+  hardware.bluetooth = {
+    enable = true;
+    powerOnBoot = false;
+  };
+
+  services.gvfs = {
+    enable = true;
+    package = lib.mkForce pkgs.gnome.gvfs;
   };
 
 
