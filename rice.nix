@@ -19,6 +19,8 @@ in
 
   home-manager.users.${user} = { pkgs, ... }: {
     
+    services.hyprpolkitagent.enable = true;
+
     programs.hyprlock = {
       package = null;
       settings = {
@@ -68,6 +70,68 @@ in
     programs.superfile = {
       enable = true;
       package = pkgs.superfile;
+      hotkeys = {
+
+        # basic
+        open_help_menu = ["?"];
+        quit = ["esc"];
+        confirm = ["enter" "right" "l"];
+        open_command_line = [":"];
+        open_spf_prompt = [">"];
+
+        # nav
+        list_up = ["k"];
+        list_down = ["j"];
+        page_up = ["ctrl+k"];
+        page_down = ["ctrl+j"];
+        parent_directory = ["h"];
+
+        # panel controls
+        close_file_panel = ["q"];
+        create_new_file_panel = ["e"];
+        next_file_panel = ["L"];
+        previous_file_panel = ["H"];
+        split_file_panel = ["N"];
+        toggle_file_preview_panel = ["f"];
+        toggle_footer = ["F"];
+
+        # sort and filter
+        toggle_reverse_sort = ["R"];
+        open_sort_options_menu = ["o"];
+        toggle_dot_file = ["."];
+        search_bar = ["/"];
+
+        # focus
+        focus_on_metadata = ["m"];
+        focus_on_process_bar = ["P"];
+        focus_on_sidebar = ["s"];
+
+        # file ops
+        change_panel_mode = ["v"];
+        file_panel_select_mode_items_select_up = ["K"];
+        file_panel_select_mode_items_select_down = ["J"];
+        file_panel_select_all_items = ["a"];
+
+        file_panel_item_create = ["n"];
+        file_panel_item_rename = ["r"];
+        copy_items = ["y"];
+        copy_path = ["Y"];
+        cut_items = ["x"];
+        paste_items = ["p"];
+        delete_items = ["d"];
+        permanently_delete_items = ["D"];
+
+        compress_file = ["A"];
+        extract_file = ["ctrl+a"];
+
+        open_file_with_editor = ["space"];
+        open_current_directory_with_editor = ["shift+space"];
+
+        # typing
+        confirm_typing = ["enter"];
+        cancel_typing = ["esc"];
+
+      };
       settings = {
         cd_on_quit = true;
         theme = "catpuccin";
@@ -88,6 +152,13 @@ in
     programs.bash = {
       enable = true;
       bashrcExtra = ''
+        echo ".bashrc sourced"
+        cd() {
+          builtin cd $@
+          if [ -n "$NVIM" ]; then
+            (>/dev/null 2>&1 nvim --server "$NVIM" --remote-expr "execute('cd $(pwd)')" &)
+          fi
+        }
         spf() {
           os=$(uname -s)
         
@@ -101,7 +172,7 @@ in
             export SPF_LAST_DIR="$HOME/Library/Application Support/superfile/lastdir"
           fi
         
-          command spf "$@"
+          command superfile "$@"
         
           [ ! -f "$SPF_LAST_DIR" ] || {
             . "$SPF_LAST_DIR"
@@ -113,9 +184,15 @@ in
 
     programs.quickshell = {
       enable = true;
-      systemd.enable = true;
+      systemd.enable = false;
       systemd.target = "hyprland-session.target";
       configs = { "." = "/etc/nixos/quickshell/"; };
+    };
+
+    home.pointerCursor = {
+      package = pkgs.graphite-cursors;
+      name = "Graphite dark Cursors";
+      hyprcursor.enable = true;
     };
     
     wayland.windowManager.hyprland = {
@@ -137,18 +214,32 @@ in
 	    scale = 1;
 	  }
 	  {
-	    output = "DP-1";
+	    output = "desc:Lenovo Group Limited TIO24Gen3 V300WGTX";
 	    mode = "preferred";
 	    position = "1920x-1080";
 	    scale = 1;
 	    transform = 1;
 	  }
 	  {
-	    output = "HDMI-A-1";
+	    output = "desc:LG Electronics LG ULTRAGEAR 209NTMX0S371";
 	    mode = "1920x1080";
 	    position = "-1920x0";
 	    scale = 1;
-	  }
+          }
+          {
+            output = "desc:Samsung Electric Company SAMSUNG";
+            mode = "1920x1080";
+            mirror = "eDP-1";
+          }
+          {
+            output = "desc:___ BBK TV 0x0000000F";
+            mode = "1024x768";
+            mirror = "eDP-1";
+          }
+          {
+            output = "";
+            mirror = "eDP-1";
+          }
 	];
 
 
@@ -165,7 +256,7 @@ in
         # PROGRAMS #
         ############
         quickshell._var = "quickshell";
-	search._var = "rm $HOME/.cache/tofi-drun && tofi-drun --drun-launch=true"; # Search command
+	search._var = "find \"$HOME/.local/share/applications\" -name '*.desktop' -exec grep -l 'Exec=steam steam://rungameid/' {} \\; -delete && rm $HOME/.cache/tofi-drun  && tofi-drun --drun-launch=true"; # Search command
 	terminal._var = "kitty"; # Terminal command
 	filesGUI._var = "dolphin"; # Graphical file explorer command
 	filesTUI._var = "kitty -o confirm_os_window_close=0 superfile"; # Text file explorer command
@@ -197,6 +288,29 @@ in
             no_blur = true;
             no_focus = true;
             pin = true;
+          }
+        ];
+
+        ##############
+        # ANIMATIONS #
+        ##############
+        curve = [
+          {_args=[
+            (lib.generators.mkLuaInline "\"almostLinear\"")
+            {
+              type = "bezier";
+              points = lib.generators.mkLuaInline "{ {0.5, 0.5}, {0.75, 1} }";
+            }
+          ];}
+        ];
+
+        animation = [
+          {
+            leaf = "workspaces";
+            enabled = true;
+            speed = 1;
+            bezier = "almostLinear";
+            style = "fade";
           }
         ];
 
