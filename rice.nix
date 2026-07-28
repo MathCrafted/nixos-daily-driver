@@ -22,7 +22,7 @@ in
     services.hyprpolkitagent.enable = true;
 
     programs.hyprlock = {
-      package = null;
+      #package = null;
       settings = {
         general = {
 	  hide_cursor = true;
@@ -34,7 +34,19 @@ in
 	    blur_passes = 3;
 	    blur_size = 8;
 	  }
-	];
+        ];
+        input-field = [
+          {
+            size = "200, 5%";
+            position = "0, -20";
+            monitor = "";
+            dots_center = true;
+            fade_on_empty = false;
+            outline_thickness = 5;
+            placeholder_text = "'<span forground='#cad3f5'>Password...</span>";
+            shadow_passes = 2;
+          }
+        ];
       };
     };
     
@@ -186,7 +198,7 @@ in
       enable = true;
       systemd.enable = false;
       systemd.target = "hyprland-session.target";
-      configs = { "." = "/etc/nixos/quickshell/"; };
+      configs = { "." = ./quickshell; };
     };
 
     home.pointerCursor = {

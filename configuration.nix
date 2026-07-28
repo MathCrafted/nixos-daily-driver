@@ -2,13 +2,7 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, lib, ... }:
-
-let
-
-  home-manager = builtins.fetchTarball https://github.com/nix-community/home-manager/archive/release-26.05.tar.gz;
-  
-in
+{ config, pkgs, lib, home-manager, ... }:
 
 {
 
@@ -23,9 +17,14 @@ in
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
-      <home-manager/nixos>
       ./boot.nix
       ./rice.nix
+
+      # "${builtins.fetchTarball {
+      #   url = "https://github.com/ryantm/agenix/archive/564595d0ad4be7277e07fa63b5a991b3c645655d.tar.gz";
+      #   # update hash from nix build output
+      #   sha256 = "";
+      # }}/modules/age-home.nix"
     ];
 
 
@@ -128,8 +127,9 @@ in
     enable = true;
     extraConfig = ''
       polkit.addRule(function(action, subject) {
-        if (subject.isInGroup("wheel"))
-          return polkit.result.YES;
+        if (subject.isInGroup("wheel")) {
+          return polkit.Result.YES;
+        }
       });
     '';
   };
@@ -157,6 +157,11 @@ in
         force = true;
         source = ./files/KEYDB.cfg;
       };
+      # "Obsidian/" = {
+      #   enable = true;
+      #   force = false;
+      #   source = ./files/emptyFolder;
+      # };
     };
   };
 
@@ -200,6 +205,9 @@ in
     cowsay
     lolcat
     cifs-utils
+    wineWow64Packages.stable
+    winetricks
+    steam-run
 
     # Desktop Shell Layer
     dunst
@@ -223,6 +231,7 @@ in
     handbrake
     mkvtoolnix
     mkvtoolnix-cli
+    obsidian
 
     # Art
     gimp
@@ -236,6 +245,9 @@ in
     qemu-utils
     socat
     arduino-ide
+    podman-compose
+    putty
+    zenmap
 
     # Communication
     webcord
@@ -245,6 +257,14 @@ in
 
   ];
 
+  specialisation.productivity = {
+    configuration = {
+      environment.systemPackages = with pkgs; [
+        #
+      ];
+    };
+  };
+
   specialisation.gaming = {
     configuration = {
       environment.systemPackages = with pkgs; [
@@ -253,7 +273,7 @@ in
         dolphin-emu
         lunar-client
         vintagestory
-        wine64
+        openrct2
 
       ];
 
@@ -271,8 +291,6 @@ in
         enable = true;
         extraRules = ''
           SUBSYSTEM=="usb", ATTRS{idVendor}=="0x8087", ATTRS{idProduct}=="0x0029", TAG+="uaccess"
-          #KERNEL=="media0", SUBSYSTEM=="media", TAG+="uaccess"
-          #KERNEL=="video[0-9]*", SUBSYSTEM=="video4linux", SUBSYSTEMS=="usb", ATTRS{idVendor}=="3938", ATTRS{idProduct}=="1300", SYMLINK+="video-cam"
         '';
       };
     };
@@ -356,6 +374,8 @@ in
 
   virtualisation.podman = {
     enable = true;
+    dockerCompat = true;
+    defaultNetwork.settings.dns_enabled = true;
   };
 
   programs.obs-studio = {
@@ -384,6 +404,22 @@ in
     percentageLow = 10;
     percentageCritical = 3;
     percentageAction = 1;
+  };
+
+  systemd.services.sleep-lock = {
+    enable = true;
+    description = "Lock the screen when suspending or hibernating lol";
+    wantedBy = [ "suspend.target" ];
+    before = [ "suspend.target" ];
+    environment = {
+      DISPLAY = ":0";
+      XDG_CONFIG_HOME = "/home/mathcrafted/.config";
+    };
+    serviceConfig = {
+      User = "%u";
+      Type = "exec";
+      ExecStart = "/run/current-system/sw/bin/hyprlock -v";
+    };
   };
 
   services.keyd = {
@@ -510,11 +546,15 @@ in
     trustedInterfaces = [
       config.services.tailscale.interfaceName
     ];
+    allowedTCPPorts = [
+      #
+    ];
     allowedTCPPortRanges = [ 
       { from=1714; to=1764; }
     ];
     allowedUDPPorts = [
       config.services.tailscale.port
+      69
     ];
     allowedUDPPortRanges = [ 
       { from=1714; to=1764; }
@@ -531,6 +571,20 @@ in
   services.gvfs = {
     enable = true;
     package = lib.mkForce pkgs.gnome.gvfs;
+  };
+
+  services.avahi = {
+    enable = true;
+    nssmdns4 = true;
+    openFirewall = true;
+  };
+
+  services.printing = {
+    enable = true;
+    drivers = with pkgs; [
+      cups-filters
+      cups-browsed
+    ];
   };
 
 
