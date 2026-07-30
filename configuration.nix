@@ -134,11 +134,19 @@
     '';
   };
 
+  services.udev = {
+    enable = true;
+    extraRules = ''
+      #SUBSYSTEM=="usb", ATTRS{idVendor}=="0x8087", ATTRS{idProduct}=="0x0029", TAG+="uaccess"
+      SUBSYSTEM=="usb", ATTRS{idVendor}=="0x0403", ATTRS{idProduct}=="0x6001", TAG+="uaccess"
+    '';
+  };
+
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.mathcrafted = {
     isNormalUser = true;
     description = "mathcrafted";
-    extraGroups = [ "networkmanager" "wheel" "seat" "audio" "realtime" "wireshark" "plugdev" "cdrom" "video" "rfkill" ];
+    extraGroups = [ "networkmanager" "wheel" "seat" "audio" "realtime" "wireshark" "plugdev" "cdrom" "video" "rfkill" "dialout" ];
     packages = with pkgs; [
       claude-code
     ];
@@ -149,7 +157,12 @@
     
     programs.bash.enable = true;
     programs.kitty.enable = true;
-    programs.firefox.enable = true;
+    programs.firefox = {
+      enable = true;
+      languagePacks = [
+        "en-US"
+      ];
+    };
     services.kdeconnect.enable = true;
     home.file = {
       ".config/aacs/KEYDB.cfg" = {
@@ -162,6 +175,15 @@
       #   force = false;
       #   source = ./files/emptyFolder;
       # };
+    };
+    services.git-sync = {
+      enable = true;
+      repositories = {
+        notes = {
+          path = /home/mathcrafted/Obsidian;
+          uri = "git@github.com:MathCrafted/Obsidian.git";
+        };
+      };
     };
   };
 
@@ -211,6 +233,8 @@
 
     # Desktop Shell Layer
     dunst
+    freetype
+    fontconfig
     nerd-fonts.noto
     grim
     slurp
@@ -256,6 +280,15 @@
     feishin
 
   ];
+
+  fonts = {
+    enableDefaultPackages = true;
+    packages = with pkgs; [
+      nerd-fonts.noto
+      nerd-fonts.commit-mono
+      noto-fonts
+    ];
+  };
 
   specialisation.productivity = {
     configuration = {

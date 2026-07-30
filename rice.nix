@@ -58,7 +58,7 @@ in
         modules = {
           left = [
             "Tray"
-            "Clock"
+            "Tempo"
           ];
           center = [
             "Workspaces"
@@ -74,6 +74,14 @@ in
         settings.indicators = [ "Battery" "Audio" "Network" ];
         settings.battery_format = "IconAndPercentage";
         settings.peripheral_battery_format = "IconAndPercentage";
+        tempo = {
+          clock_format = "%H:%M:%S";
+          timezones = [
+            "UTC"
+            "America/New_York"
+            "America/Chicago"
+          ];
+        };
       };
     };
 
