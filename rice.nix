@@ -77,9 +77,9 @@ in
         tempo = {
           clock_format = "%H:%M:%S";
           timezones = [
-            "UTC"
-            "America/New_York"
             "America/Chicago"
+            "America/New_York"
+            "UTC"
           ];
         };
       };

@@ -52,7 +52,9 @@
   ################
 
   # Set your time zone.
-  time.timeZone = "America/New_York";
+  #time.timeZone = "America/New_York";
+  time.timeZone = "America/Chicago";
+
 
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
@@ -155,13 +157,28 @@
   home-manager.users.mathcrafted = { pkgs, ... }: {
     home.stateVersion = "26.05";
     
-    programs.bash.enable = true;
+    programs.bash = {
+      enable = true;
+      profileExtra = ''
+        echo "" > /home/mathcrafted/log.txt; for file in $(ls -1 ~/.ssh | grep -E "^id_" | grep -Ev ".pub$"); do ssh-add ~/.ssh/$file; echo $file >> /home/mathcrafted/log.txt; done
+      '';
+    };
     programs.kitty.enable = true;
     programs.firefox = {
       enable = true;
       languagePacks = [
         "en-US"
       ];
+    };
+    programs.obsidian = {
+      enable = true;
+      package = pkgs.obsidian;
+      defaultSettings = {
+        hotkeys."command-palette:open" = {
+          key = " ";
+          modifiers = "Mod";
+        };
+      };
     };
     services.kdeconnect.enable = true;
     home.file = {
@@ -176,15 +193,15 @@
       #   source = ./files/emptyFolder;
       # };
     };
-    services.git-sync = {
-      enable = true;
-      repositories = {
-        notes = {
-          path = /home/mathcrafted/Obsidian;
-          uri = "git@github.com:MathCrafted/Obsidian.git";
-        };
-      };
-    };
+    # services.git-sync = {
+    #   enable = true;
+    #   repositories = {
+    #     notes = {
+    #       path = /home/mathcrafted/Obsidian;
+    #       uri = "git@github.com:MathCrafted/Obsidian.git";
+    #     };
+    #   };
+    # };
   };
 
 
@@ -194,6 +211,7 @@
 
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
+  home-manager.useGlobalPkgs = true;
 
   # Overlays
   nixpkgs.overlays = [
@@ -230,6 +248,7 @@
     wineWow64Packages.stable
     winetricks
     steam-run
+    cifs-utils
 
     # Desktop Shell Layer
     dunst
@@ -255,15 +274,11 @@
     handbrake
     mkvtoolnix
     mkvtoolnix-cli
-    obsidian
+    localsend
 
     # Art
     gimp
-    blender
     davinci-resolve
-    inkscape
-    libresprite
-    lmms
 
     # Development
     qemu-utils
@@ -294,6 +309,25 @@
     configuration = {
       environment.systemPackages = with pkgs; [
         #
+      ];
+    };
+  };
+
+  specialisation.animation = {
+    configuration = {
+      environment.systemPackages = with pkgs; [
+        inkscape
+        blender
+        libresprite
+      ];
+    };
+  };
+
+  specialisation.music = {
+    configuration = {
+      environment.systemPackages = with pkgs; [
+        lmms
+        openutau
       ];
     };
   };
@@ -404,6 +438,21 @@
   };
 
   programs.ssh.startAgent = true;
+  systemd.user.services.add-sshkeys = {
+    description = "Add ssh keys in ~/.ssh after ssh-agent has started";
+    wantedBy = [ "default.target" ];
+    wants = [ "ssh-agent.service" ];
+    after = [ "ssh-agent.service" ];
+    #preStart = "${pkgs.coreutils-full}/bin/sleep 3";
+    environment = {
+      SSH_AUTH_SOCK = "/run/user/1000/ssh-agent";
+    };
+    script = "for file in $(ls -1 ~/.ssh | ${pkgs.gnugrep}/bin/grep -E \"^id_\" | ${pkgs.gnugrep}/bin/grep -Ev \".pub$\"); do ${pkgs.openssh}/bin/ssh-add ~/.ssh/$file; done";
+    serviceConfig = {
+      User = "%u";
+      Type = "exec";
+    };
+  };
 
   virtualisation.podman = {
     enable = true;
@@ -545,6 +594,10 @@
       }
     ];
   };
+
+  hardware.graphics.enable = true;
+  services.xserver.videoDrivers = [ "nvidia" ];
+  hardware.nvidia.open = true;
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
