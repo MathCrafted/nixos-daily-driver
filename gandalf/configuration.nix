@@ -174,6 +174,10 @@
       enable = true;
       package = pkgs.obsidian;
       defaultSettings = {
+        app = {
+          "vimMode" = true;
+          "showLineNumber" = true;
+        };
         hotkeys."command-palette:open" = {
           key = " ";
           modifiers = "Mod";
@@ -249,6 +253,8 @@
     winetricks
     steam-run
     cifs-utils
+    age
+    sops
 
     # Desktop Shell Layer
     dunst
@@ -275,6 +281,7 @@
     mkvtoolnix
     mkvtoolnix-cli
     localsend
+    rpi-imager
 
     # Art
     gimp
@@ -340,7 +347,7 @@
         dolphin-emu
         lunar-client
         vintagestory
-        openrct2
+        # openrct2
 
       ];
 
